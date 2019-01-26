@@ -1,0 +1,2 @@
+#!bash
+docker run --name speach_synt -p 8888:8888 -v "$PWD/..:/opt/notebooks" -d speach_synt
