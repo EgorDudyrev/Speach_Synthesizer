@@ -25,6 +25,8 @@ RUN pip uninstall notebook -y && pip install notebook==5.6.0
 
 # Additional packages
 RUN pip install tensorflow 
+RUN apt-get install -y ffmpeg
+RUN pip install librosa
 
 # Configuring access to Jupyter
 RUN mkdir /opt/notebooks
