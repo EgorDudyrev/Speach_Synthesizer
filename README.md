@@ -12,5 +12,8 @@ JupyterNotebook pass: "root"
 ## Project files
 * synt_lib.py - to contain all generic variables
 
+## Data
+CommonVoice library: https://voice.mozilla.org/ru/datasets
+
 ## WaveNet heritage
 Taken from WaveNet model implementation https://github.com/ibab/tensorflow-wavenet
