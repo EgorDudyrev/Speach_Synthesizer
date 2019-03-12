@@ -50,16 +50,35 @@ def write_wav(waveform, filename, sample_rate=get_model_params('SAMPLE_RATE'), v
     librosa.output.write_wav(filename, y, sample_rate)
     if verbose: print('Updated wav file at {}'.format(filename))
     
-def load_audio_one_hot(filename,
+def load_audio_not_one_hot(filename,
                       sample_rate=get_model_params('SAMPLE_RATE'),
                       quantization_channels=get_model_params('QUANTIZATION_CHANNELS'),
                       batch_size=get_model_params('BATCH_SIZE')
                      ):
     audio = load_wav(filename, sample_rate)
     quantized = mu_law_encode(audio, quantization_channels)
+    return quantized
+
+def load_audio_one_hot(filename,
+                      sample_rate=get_model_params('SAMPLE_RATE'),
+                      quantization_channels=get_model_params('QUANTIZATION_CHANNELS'),
+                      batch_size=get_model_params('BATCH_SIZE')
+                     ):
+    quantized = load_audio_not_one_hot(filename, sample_rate, quantization_channels, batch_size)
     quantized_oh = _one_hot(quantized, batch_size, quantization_channels)
     return quantized_oh
 
+def write_audio_not_one_hot(filename,
+                        audio,
+                        session,
+                        sample_rate=get_model_params('SAMPLE_RATE'),
+                        quantization_channels=get_model_params('QUANTIZATION_CHANNELS'),
+                        verbose=False
+                       ):
+    out = mu_law_decode(audio, quantization_channels)
+    out_wave = session.run(out[0])
+    write_wav(out_wave, os.path.join(get_dirs('OUTPUT'), filename), sample_rate, verbose)
+                           
 def write_audio_one_hot(filename,
                         audio,
                         session,
@@ -68,6 +87,7 @@ def write_audio_one_hot(filename,
                         verbose=False
                        ):
     quantized_deoh = _de_one_hot(audio)
-    out = mu_law_decode(quantized_deoh, quantization_channels)
-    out_wave = session.run(out[0])
-    write_wav(out_wave, os.path.join(get_dirs('OUTPUT'), filename), sample_rate, verbose)
+    write_audio_not_one_hot(filname, quantized_deoh, session, sample_rate, quantization_channels, verbose)
+    #out = mu_law_decode(quantized_deoh, quantization_channels)
+    #out_wave = session.run(out[0])
+    #write_wav(out_wave, os.path.join(get_dirs('OUTPUT'), filename), sample_rate, verbose)
