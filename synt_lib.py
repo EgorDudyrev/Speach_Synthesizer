@@ -76,7 +76,7 @@ def write_audio_not_one_hot(filename,
                         verbose=False
                        ):
     out = mu_law_decode(audio, quantization_channels)
-    out_wave = session.run(out[0])
+    out_wave = session.run(out)
     write_wav(out_wave, os.path.join(get_dirs('OUTPUT'), filename), sample_rate, verbose)
                            
 def write_audio_one_hot(filename,
