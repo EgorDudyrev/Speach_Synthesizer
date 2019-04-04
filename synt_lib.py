@@ -4,11 +4,13 @@ import librosa
 from wavenet import AudioReader, mu_law_encode, mu_law_decode
 import numpy as np
 
-def get_dirs(d=None):
-    dirs = {'NOTEBOOKS': '/opt/notebooks/notebooks/',
-            'SONGS': '/opt/notebooks/data/songs/',
-            'RAW_DATA': '/opt/notebooks/raw_data/',
-            'OUTPUT': '/opt/notebooks/output/'}
+def get_dirs(d=None, parent_dir='/opt/notebooks/'):
+    dirs = {'NOTEBOOKS': 'notebooks/',
+            'SONGS': 'data/songs/',
+            'RAW_DATA': 'raw_data/',
+            'OUTPUT': 'output/',
+            'MODEL_CKPTS': 'checkpoints/'}
+    dirs = {k:parent_dir+v for k,v in dirs.items()}
     return dirs[d] if d else dirs
 
 def get_model_params(p=None):
