@@ -6,11 +6,14 @@ import numpy as np
 from numpy import random
 import matplotlib.pyplot as plt
 
-def get_dirs(d=None):
-    dirs = {'NOTEBOOKS': '/opt/notebooks/notebooks/',
-            'SONGS': '/opt/notebooks/data/songs/',
-            'RAW_DATA': '/opt/notebooks/raw_data/',
-            'OUTPUT': '/opt/notebooks/output/'}
+def get_dirs(d=None, parent_dir='/opt/notebooks'):
+    dirs = {
+        'NOTEBOOKS': parent_dir+'/notebooks/',
+        'SONGS': parent_dir+'/data/songs/',
+        'RAW_DATA': parent_dir+'/raw_data/',
+        'OUTPUT': parent_dir+'/output/',
+        'MODELS': parent_dir+'/models/',
+    }
     return dirs[d] if d else dirs
 
 def get_model_params(p=None):

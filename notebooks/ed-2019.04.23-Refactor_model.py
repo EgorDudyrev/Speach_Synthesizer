@@ -17,9 +17,10 @@ from IPython import display
 get_ipython().run_line_magic('matplotlib', 'inline')
 from tqdm import tqdm_notebook
 
+PARENT_DIR = os.path.realpath('..')
 import importlib
-if os.path.realpath('..') not in sys.path:
-    sys.path.append(os.path.realpath('..'))
+if PARENT_DIR not in sys.path:
+    sys.path.append(PARENT_DIR)
 
 try: importlib.reload(sl)
 except: import synt_lib as sl
@@ -34,7 +35,7 @@ sess = tf.Session()
 # In[3]:
 
 
-DIRS = sl.get_dirs()
+DIRS = sl.get_dirs(parent_dir=PARENT_DIR)
 M_PARAMS = sl.get_model_params()
 
 
@@ -247,6 +248,26 @@ sess.run(init_variables)
 # In[11]:
 
 
+model_name = 'Refactored'
+
+
+# In[12]:
+
+
+if model_name not in os.listdir(DIRS['MODELS']):
+    os.mkdir(DIRS['MODELS']+model_name)
+
+
+# In[13]:
+
+
+saver = tf.train.Saver()
+saver.save(sess, DIRS['MODELS']+model_name+'/first_checkpoint')
+
+
+# In[14]:
+
+
 # Initialize the losses
 train_losses = []
 validation_losses = []
@@ -265,21 +286,30 @@ for epoch in tqdm_notebook(range(num_epochs)):
         sl.plot_losses(train_losses, validation_losses,
                     title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
         plt.show()
+        saver.save(sess, DIRS['MODELS']+model_name+'/checkpoint',global_step=epoch,write_meta_graph=False)
 else:
     sl.plot_losses(train_losses, validation_losses,
                 title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
     plt.show()
+    saver.save(sess, DIRS['MODELS']+model_name+'/final')
+
+
+# In[15]:
+
+
+saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/first_checkpoint.meta')
+saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
 
 
 # # Sound generation
 
-# In[12]:
+# In[16]:
 
 
 gen_to_wav = gru.generate_sound(num_pieces=1, n_seconds=2, session=sess, sample_rate=M_PARAMS['SAMPLE_RATE'])
 
 
-# In[13]:
+# In[17]:
 
 
 #plt.plot(audio.eval(session=sess), label='real')
@@ -287,7 +317,7 @@ plt.plot(gen_to_wav[0].eval(session=sess), label='generated')
 plt.plot(np.int32([np.sin(x/1000)*16000+32256 for x in range(gen_to_wav.shape[1])]))
 
 
-# In[14]:
+# In[18]:
 
 
 sl.write_audio_not_one_hot(audio=gen_to_wav[0], filename='output_0.wav', session=sess, quantization_channels=quant)
