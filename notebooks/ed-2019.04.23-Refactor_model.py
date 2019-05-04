@@ -275,7 +275,7 @@ saver = tf.train.Saver()
 # In[11]:
 
 
-X = sl.load_data(wav_fnames, 50)
+X = sl.load_data(wav_fnames, 3)
 
 
 # In[12]:
@@ -294,7 +294,7 @@ print(batch_size, truncated_len, total_series_length, num_epochs)
 n_early_stopping = 50
 
 
-# In[14]:
+# In[13]:
 
 
 epoch_start = 0
@@ -367,6 +367,29 @@ X = sl.load_data(wav_fnames, 3)
 
 
 # In[ ]:
+
+
+tf.reset_default_graph()
+saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
+with tf.Session() as sess:
+    saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
+    restored_variables = {x.name:x.eval(session=sess) for x in tf.global_variables()[:13]}
+
+
+# In[15]:
+
+
+tf.reset_default_graph()
+gru = WaveGRU(input_dimensions, hidden_size, variables_values_dict=restored_variables)
+
+
+# In[16]:
+
+
+X = sl.load_data(wav_fnames, 3)
+
+
+# In[17]:
 
 
 batch_size = 10
