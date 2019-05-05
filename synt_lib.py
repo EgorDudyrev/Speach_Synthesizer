@@ -13,6 +13,7 @@ def get_dirs(d=None, parent_dir='/opt/notebooks'):
         'RAW_DATA': parent_dir+'/raw_data/',
         'OUTPUT': parent_dir+'/output/',
         'MODELS': parent_dir+'/models/',
+        'MODEL_CKPTS': parent_dir+'checkpoints/'
     }
     return dirs[d] if d else dirs
 
