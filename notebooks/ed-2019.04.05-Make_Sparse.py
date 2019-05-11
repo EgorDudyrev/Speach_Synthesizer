@@ -549,7 +549,7 @@ class WaveGRU_simple_sparse:
         gen_to_wav = np.int32((gen_to_wav[:,:,0]*256+gen_to_wav[:,:,1]).round())
         gen_to_wav = tf.convert_to_tensor(gen_to_wav)
         return gen_to_wav
-# In[190]:
+# In[7]:
 
 
 class WaveGRU_simple_sparse:
@@ -814,7 +814,7 @@ class WaveGRU_simple_sparse:
         return gen_to_wav
 
 
-# In[191]:
+# In[8]:
 
 
 input_dimensions = 3
@@ -862,7 +862,7 @@ plt.show()
 
 # ## Structured Sparse
 
-# In[410]:
+# In[9]:
 
 
 class WaveGRU_structured_sparse:
@@ -1103,7 +1103,7 @@ class WaveGRU_structured_sparse:
         return gen_to_wav
 
 
-# In[415]:
+# In[10]:
 
 
 input_dimensions = 3
@@ -1112,7 +1112,7 @@ batch_size = 10
 truncated_len = 150 
 
 
-# In[ ]:
+# In[420]:
 
 
 model_name = f'Sparse_Develop'
@@ -1125,7 +1125,7 @@ train_losses, validation_losses, model = train_model(
 )
 
 
-# In[ ]:
+# In[421]:
 
 
 plt.figure(figsize=(10,3))
@@ -1136,36 +1136,165 @@ plt.show()
 
 
 # # Restoring model
+
+# In[11]:
+
+
+model_name = f'Sparse_Develop'
+
+
+# In[12]:
+
+
+sorted(os.listdir(DIRS['MODELS']+model_name))
+
+
+# In[13]:
+
+
 tf.reset_default_graph()
-saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
+#saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
+saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/checkpoint-900.meta')
 with tf.Session() as sess:
     saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
     restored_variables = {x.name:x.eval(session=sess) for x in tf.global_variables()[:13]}
 
 tf.reset_default_graph()
-gru = WaveGRU(input_dimensions, hidden_size, variables_values_dict=restored_variables)X = sl.load_data(wav_fnames, 3)batch_size = 10
-truncated_len = 100#M_PARAMS['SAMPLE_RATE']
-total_series_length = int(X.shape[1])
-num_epochs = 50#400#total_series_length//batch_size//truncated_len
-print(batch_size, truncated_len, total_series_length, num_epochs)init_variables = tf.global_variables_initializer()with tf.Session() as sess:
-    sess.run(init_variables)
-    O1_restored = gru.O1.eval(session=sess)plt.figure(figsize=(15,4))
-for idx, O in enumerate([('before training',O1_before),
-                         ('after training', O1_after),
-                         ('restored', O1_restored)]):
-    title, O = O
-    plt.subplot(1,3,idx+1)
-    sns.heatmap(O, center=0, cmap='RdBu_r')
-    plt.title(title)
-plt.tight_layout()
-plt.show()
+gru = WaveGRU(input_dimensions, hidden_size, variables_values_dict=restored_variables)
+
+X = sl.load_data(wav_fnames, 3)
 # # Sound generation
+
+# In[15]:
+
+
 with tf.Session() as sess:
+    init_variables = tf.global_variables_initializer()
     sess.run(init_variables)
-    gen_to_wav = gru.generate_sound(num_pieces=1, n_seconds=2, session=sess, sample_rate=M_PARAMS['SAMPLE_RATE'])with tf.Session() as sess:
+    gen_to_wav = gru.generate_sound(num_pieces=1, n_seconds=2, session=sess, sample_rate=M_PARAMS['SAMPLE_RATE'])
+
+
+# In[16]:
+
+
+with tf.Session() as sess:
     sess.run(init_variables)
     #plt.plot(audio.eval(session=sess), label='real')
     plt.plot(gen_to_wav[0].eval(session=sess), label='generated')
-plt.plot(np.int32([np.sin(x/1000)*16000+32256 for x in range(gen_to_wav.shape[1])]))with tf.Session() as sess:
+plt.plot(np.int32([np.sin(x/1000)*16000+32256 for x in range(gen_to_wav.shape[1])]))
+
+
+# In[31]:
+
+
+with tf.Session() as sess:
+    init_variables = tf.global_variables_initializer()
+    sess.run(init_variables)
+    O1, O2, O3, O4 = sess.run([gru.O1, gru.O2, gru.O3, gru.O4])
+    Iu, Ir, Ie = sess.run([gru.Iu, gru.Ir, gru.Ie])
+    Ru, Rr, Re = sess.run([gru.Ru, gru.Rr, gru.Re])
+
+
+# In[41]:
+
+
+for idx, m in enumerate([O1, O2, O3, O4]):
+    plt.subplot(1,4,idx+1)
+    plt.imshow(m)
+    plt.title(['O1','O2','O3','O4'][idx])
+plt.tight_layout()
+plt.show()
+
+for idx, m in enumerate([Ru, Rr, Re]):
+    plt.subplot(1,3,idx+1)
+    plt.imshow(m)
+    plt.title(['Ru','Rr','Re'][idx])
+plt.tight_layout()
+plt.show()
+
+for idx, m in enumerate([Iu, Ir, Ie]):
+    plt.subplot(1,3,idx+1)
+    sns.heatmap(m)
+    plt.title(['Iu','Ir','Ie'][idx])
+plt.tight_layout()
+plt.show()
+
+
+# In[50]:
+
+
+os.listdir(DIRS['RAW_DATA']+'cv_corpus_v1/cv-other-train')
+
+
+# In[56]:
+
+
+audio = sl.load_audio_not_one_hot(DIRS['RAW_DATA']+'cv_corpus_v1/cv-other-train/sample-052026.wav')
+
+
+# In[52]:
+
+
+X = sl.load_data([DIRS['RAW_DATA']+'cv_corpus_v1/cv-other-train/sample-052026.wav'])
+
+
+# In[138]:
+
+
+with tf.Session() as sess:
+    init_variables = tf.global_variables_initializer()
+    sess.run(init_variables)
+    O1, O2, O3, O4 = sess.run([gru.O1, gru.O2, gru.O3, gru.O4])
+    Iu, Ir, Ie = sess.run([gru.Iu, gru.Ir, gru.Ie])
+    Ru, Rr, Re = sess.run([gru.Ru, gru.Rr, gru.Re])
+    audio_eval = sess.run(audio)
+    X_eval = sess.run(X)
+    X_train, Y_train, X_test, Y_test = sl.get_train_test(X, 10, 5000)
+    Y_train_audio = ((Y_train*128+128)[:,:,0])*256+(Y_train*128+128)[:,:,1]
+    Y_train_audio_eval = sess.run(Y_train_audio)
+    
+
+
+# In[139]:
+
+
+plt.plot(audio_eval, color='blue', label='audio')
+for i in Y_train_audio_eval[:1]:
+    plt.plot(i)
+plt.legend()
+plt.show()
+
+
+# In[62]:
+
+
+X_train, Y_train, X_test, Y_test = sl.get_train_test(X, 10, 100)
+[x.shape for x in [X_train, Y_train, X_test, Y_test]]
+
+
+# In[91]:
+
+
+((Y_train*256+256)[:,:,0]*256)+(Y_train*256+256)[:,:,1]
+
+
+# In[77]:
+
+
+tf.concat(Y_train, axis=0)
+
+
+# In[68]:
+
+
+sl.mu_law_encode(Y_train, 256*256)
+
+
+# In[63]:
+
+
+Y_train
+
+with tf.Session() as sess:
     sess.run(init_variables)
     sl.write_audio_not_one_hot(audio=gen_to_wav[0], filename='output_0.wav', session=sess, quantization_channels=quant)
