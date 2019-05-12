@@ -27,6 +27,15 @@ RUN pip uninstall notebook -y && pip install notebook==5.6.0
 RUN pip install tensorflow 
 RUN apt-get install -y ffmpeg
 RUN pip install librosa
+RUN pip install jupyterthemes
+RUN jt -t onedork  -cellw 88%
+
+#next for text alignment
+RUN apt-get install espeak -y 
+RUN apt-get install ffmpeg -y
+#RUN apt-get install ffprobe -y
+#RUN apt-get install gcc -y
+#RUN pip install aeneas
 
 # Configuring access to Jupyter
 RUN mkdir /opt/notebooks

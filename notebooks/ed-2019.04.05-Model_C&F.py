@@ -218,6 +218,65 @@ class WaveGRU:
         return gen_to_wav
 
 
+# In[54]:
+
+
+def train_model(input_dimensions, hidden_size, batch_size, truncated_len, num_epochs, model_name,
+print_period=50, save_period=50, log_period=50):
+    if model_name not in os.listdir(DIRS['MODELS']):
+        os.mkdir(DIRS['MODELS']+model_name)
+    
+    tf.reset_default_graph()
+    model = WaveGRU(input_dimensions, hidden_size)
+    init_variables = tf.global_variables_initializer()
+    saver = tf.train.Saver()
+    wav_fnames = Path(DIRS['RAW_DATA']).rglob("*.wav")
+    
+    epochs_per_files_last = 0
+    
+    
+    # Initialize the losses
+    train_losses = []
+    validation_losses = []
+
+
+    with tf.Session() as sess:
+        sess.run(init_variables)
+        
+        # Perform all the iterations
+        for epoch in tqdm_notebook(range(num_epochs)):
+            if epochs_per_files_last==0:
+                X = sl.load_data(wav_fnames, 5)
+                total_series_length = int(X.shape[1])
+                epochs_per_files_last = total_series_length//batch_size//truncated_len
+            epochs_per_files_last-=1
+            
+            X_train, Y_train, X_test, Y_test = sl.get_train_test(X, batch_size, truncated_len, sess)
+            train_loss, validation_loss = model.train(X_train, Y_train, X_test, Y_test, sess)
+
+            # Log the losses
+            train_losses.append(train_loss)
+            validation_losses.append(validation_loss)
+
+            # Display an update every 50 iterations
+            if epoch % print_period == 0 and epoch!=0:
+                print(f'Iteration: {epoch}, train loss: {train_loss:.4f}, val loss: {validation_loss:.4f}')
+            if epoch % print_period == 0 and epoch!=0:
+                sl.plot_losses(train_losses, validation_losses,
+                            title=f'Iteration: {epoch}, train loss: {train_loss:.4f}, val loss: {validation_loss:.4f}')
+                plt.show()
+            if epoch % save_period == 0:
+                saver.save(sess, DIRS['MODELS']+model_name+'/checkpoint',global_step=epoch,write_meta_graph=True)
+        
+        sl.plot_losses(train_losses, validation_losses,
+                     title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
+        plt.show()
+
+        saver.save(sess, DIRS['MODELS']+model_name+'/final')
+        
+    return train_losses, validation_losses, model
+
+
 # # Get Data
 
 # Всего файлов:
@@ -225,82 +284,74 @@ class WaveGRU:
 # * cv-valid-dev: 8152
 # * cv-valid-test: 7990
 
-# In[5]:
-
-
-wav_fnames = list(Path(DIRS['RAW_DATA']).rglob("*.wav"))
-
-
-# ## V1
-
 # In[6]:
 
 
-# The input has 2 dimensions: dimension 0 is reserved for the first term and dimension 1 is reverved for the second term
-input_dimensions = 3
-
-# Arbitrary number for the size of the hidden state
-hidden_size = 8
+wav_fnames = Path(DIRS['RAW_DATA']).rglob("*.wav")
 
 
-# 10 secs per iteration => 1 min per 6 iters => 1 hour per 360 iters
+# ## Grid search
 
 # In[7]:
 
 
-model_name = 'Refactored'
-if model_name not in os.listdir(DIRS['MODELS']):
-    os.mkdir(DIRS['MODELS']+model_name)
+grid_search_res_ds = pd.DataFrame()
 
 
-# In[8]:
+# In[42]:
 
 
-tf.reset_default_graph()
-gru = WaveGRU(input_dimensions, hidden_size)
+input_dimensions_vars = [3]
+hidden_size_vars = [16,128,512,1024]
+batch_size_vars = [50,100,200,500,1000]
+truncated_len_vars = [10, 100, 200, 500, 1000]
 
 
 # In[9]:
 
 
-init_variables = tf.global_variables_initializer()
+from itertools import product
+from random import shuffle
 
 
-# In[10]:
+# In[45]:
 
 
-saver = tf.train.Saver()
+all_vars = list(product(input_dimensions_vars, hidden_size_vars, batch_size_vars, truncated_len_vars))
+n_vars = len(all_vars)
+shuffle(all_vars)
+
+models_dict = {}
+# In[ ]:
 
 
-# In[11]:
+for idx, p in tqdm_notebook(enumerate(all_vars), total=n_vars):
+    input_dimensions, hidden_size, batch_size, truncated_len = p
+    model_name = f'C&F_inpdim{input_dimensions}_hsize{hidden_size}_bsize{batch_size}_tlen{truncated_len}'
+    print(idx, model_name)
+    if model_name in models_dict.keys():
+        continue
+    train_losses, validation_losses, model = train_model(
+        input_dimensions, hidden_size, batch_size, truncated_len, num_epochs=1000,
+        model_name=model_name, print_period=1000
+    )
+    grid_search_res_ds[model_name+'_train'] = train_losses
+    grid_search_res_ds[model_name+'_valid'] = validation_losses
+    models_dict[model_name] = model
 
+plt.figure(figsize=(10,10))
+models =list(models_dict.keys())
+for midx, m in enumerate(models):
+    plt.subplot(len(models),1,midx+1)
+    plt.plot(grid_search_res_ds[m+'_train'], label='Train' if midx==0 else '')
+    plt.plot(grid_search_res_ds[m+'_valid'], label='Validation' if midx==0 else '')
+    plt.title(m)
+plt.figlegend()
+plt.tight_layout()
+plt.show()
+# # Train best model
 
-X = sl.load_data(wav_fnames, 3)
-
-
-# In[12]:
-
-
-batch_size = 10
-truncated_len = M_PARAMS['SAMPLE_RATE']//128
-total_series_length = int(X.shape[1])
-num_epochs = 50#total_series_length//batch_size//truncated_len
-print(batch_size, truncated_len, total_series_length, num_epochs)
-
-
-# In[13]:
-
-
-n_early_stopping = 50
-
-
-# In[13]:
-
-
-epoch_start = 0
-
-
-# In[15]:
+# In[ ]:
 
 
 # Initialize the losses
@@ -313,7 +364,7 @@ with tf.Session() as sess:
     O1_before = gru.O1.eval(session=sess)
     
     # Perform all the iterations
-    for epoch in tqdm_notebook(range(epoch_start, epoch_start+num_epochs)):
+    for epoch in tqdm_notebook(range(num_epochs)):
         X_train, Y_train, X_test, Y_test = sl.get_train_test(X, batch_size, truncated_len, sess)
         train_loss, validation_loss = gru.train(X_train, Y_train, X_test, Y_test, sess)
 
@@ -321,52 +372,32 @@ with tf.Session() as sess:
         train_losses.append(train_loss)
         validation_losses.append(validation_loss)
 
-        if validation_loss>max(validation_losses[-n_early_stopping:]):
-            print(f'Early stopped at {epoch} epoch')
-            break
-        
         # Display an update every 50 iterations
-        if epoch % 50 == 0:
+        if epoch % 100 == 0:
             sl.plot_losses(train_losses, validation_losses,
                         title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
             plt.show()
             saver.save(sess, DIRS['MODELS']+model_name+'/checkpoint',global_step=epoch,write_meta_graph=False)
+    else:
+        sl.plot_losses(train_losses, validation_losses,
+                    title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
+        plt.show()
         
-    sl.plot_losses(train_losses, validation_losses,
-                title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
-    plt.show()
-        
-    saver.save(sess, DIRS['MODELS']+model_name+'/final')
+        saver.save(sess, DIRS['MODELS']+model_name+'/final')
     
     O1_after = gru.O1.eval(session=sess)
 
 
+# In[15]:
+
+
+sl.plot_losses(train_losses, validation_losses,
+              title='Iteration: %d, train loss: %.4f, test loss: %.4f' % (epoch, train_loss, validation_loss))
+
+
 # # Restoring model
 
-# In[ ]:
-
-
-tf.reset_default_graph()
-saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
-with tf.Session() as sess:
-    saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
-    restored_variables = {x.name:x.eval(session=sess) for x in tf.global_variables()[:13]}
-
-
-# In[ ]:
-
-
-tf.reset_default_graph()
-gru = WaveGRU(input_dimensions, hidden_size, variables_values_dict=restored_variables)
-
-
-# In[ ]:
-
-
-X = sl.load_data(wav_fnames, 3)
-
-
-# In[ ]:
+# In[14]:
 
 
 tf.reset_default_graph()
@@ -399,13 +430,13 @@ num_epochs = 50#400#total_series_length//batch_size//truncated_len
 print(batch_size, truncated_len, total_series_length, num_epochs)
 
 
-# In[ ]:
+# In[18]:
 
 
 init_variables = tf.global_variables_initializer()
 
 
-# In[ ]:
+# In[19]:
 
 
 with tf.Session() as sess:
@@ -413,7 +444,7 @@ with tf.Session() as sess:
     O1_restored = gru.O1.eval(session=sess)
 
 
-# In[ ]:
+# In[20]:
 
 
 plt.figure(figsize=(15,4))
@@ -430,7 +461,7 @@ plt.show()
 
 # # Sound generation
 
-# In[ ]:
+# In[21]:
 
 
 with tf.Session() as sess:
@@ -438,7 +469,7 @@ with tf.Session() as sess:
     gen_to_wav = gru.generate_sound(num_pieces=1, n_seconds=2, session=sess, sample_rate=M_PARAMS['SAMPLE_RATE'])
 
 
-# In[ ]:
+# In[22]:
 
 
 with tf.Session() as sess:
@@ -448,7 +479,7 @@ with tf.Session() as sess:
 plt.plot(np.int32([np.sin(x/1000)*16000+32256 for x in range(gen_to_wav.shape[1])]))
 
 
-# In[ ]:
+# In[23]:
 
 
 with tf.Session() as sess:
