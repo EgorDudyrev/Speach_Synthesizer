@@ -44,7 +44,7 @@ nbits = int(np.log2(quant))
 
 # # Build model
 
-# In[4]:
+# In[41]:
 
 
 def train_model(model_class,input_dimensions, hidden_size, batch_size, truncated_len, num_epochs, model_name,
@@ -117,7 +117,7 @@ print_period=50, save_period=50, log_period=50, n_files_per_epoch=5, sparsify_ep
 
 # ## Structured Sparse
 
-# In[5]:
+# In[128]:
 
 
 class WaveGRU_structured_sparse:
@@ -136,16 +136,20 @@ class WaveGRU_structured_sparse:
         The datatype used for the variables and constants (optional).
     """
     
-    def __init__(self, input_dimensions, hidden_size, dtype=tf.float64, variables_values_dict=None, block_shape=(16,1)):
+    def __init__(self, input_dimensions, hidden_size, dtype=tf.float64, variables_values_dict=None, block_shape=(16,1), session=None):
         self.input_dimensions = input_dimensions
         self.hidden_size = hidden_size
         self.block_shape = block_shape
+        self.session=session
         
         self.define_constants()
         if variables_values_dict is None:
             self.define_variables(dtype)
         else:
             self.restore_variables(variables_values_dict)
+        self.var_list = [self.Ir, self.Iu, self.Ie,
+                        self.Rr, self.Ru, self.Rr,
+                        self.O1, self.O2, self.O3, self.O4]
         self.define_arithmetics()
         self.define_train_variables()
     
@@ -155,56 +159,71 @@ class WaveGRU_structured_sparse:
         M[2,:self.hidden_size//2]=0
         self.M = tf.constant(shape=(self.input_dimensions, self.hidden_size), value=M)
         
-        m1,m2 = self.block_shape
-        self.M_Ir, self.M_Iu, self.M_Ie = [np.ones(shape=(self.input_dimensions, self.hidden_size)) for i in range(3)]
-        self.M_Rr, self.M_Ru, self.M_Re = [np.ones(shape=(self.hidden_size//m1, self.hidden_size//m2)) for i in range(3)]
-        self.M_O1, self.M_O2, self.M_O3, self.M_O4 = [np.ones(shape=(self.hidden_size//2//m1, self.hidden_size//2//m2)) for i in range(4)]
-                
-        
     def define_variables(self, dtype):     
         # Weights for input vectors of shape (input_dimensions, hidden_size)
-        self.Ir = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.input_dimensions, self.hidden_size), mean=0, stddev=0.01), name='Ir')
-        self.Iu = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.input_dimensions, self.hidden_size), mean=0, stddev=0.01), name='Iu')
-        self.Ie = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.input_dimensions, self.hidden_size), mean=0, stddev=0.01), name='Ie')
-        
+        self.Ir, self.Iu, self.Ie = [
+            tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.input_dimensions, self.hidden_size), mean=0, stddev=0.01), name=name)
+            for name in ['Ir','Iu','Ie']
+        ]
+
         # Weights for hidden vectors of shape (hidden_size, hidden_size)
-        self.Rr = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size, self.hidden_size), mean=0, stddev=0.01), name='Rr')
-        self.Ru = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size, self.hidden_size), mean=0, stddev=0.01), name='Ru')
-        self.Re = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size, self.hidden_size), mean=0, stddev=0.01), name='Re')
+        self.Rr, self.Ru, self.Re = [
+            tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size, self.hidden_size), mean=0, stddev=0.01), name=name)
+            for name in ['Rr','Ru','Re']
+        ]
         
         # Biases for hidden vectors of shape (hidden_size,)
-        self.br = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size,), mean=0, stddev=0.01), name='br')
-        self.bu = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size,), mean=0, stddev=0.01), name='bu')
-        self.be = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size,), mean=0, stddev=0.01), name='be')
+        self.br, self.bu, self.be = [
+            tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size,), mean=0, stddev=0.01), name=name)
+            for name in ['br','bu','be']
+        ]
         
         # O's matrices
-        self.O1 = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size//2,self.hidden_size//2), mean=0, stddev=0.01), name='O1')
-        self.O3 = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size//2,self.hidden_size//2), mean=0, stddev=0.01), name='O3')
-        self.O2 = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size//2,self.hidden_size//2), mean=0, stddev=0.01), name='O2')
-        self.O4 = tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size//2,self.hidden_size//2), mean=0, stddev=0.01), name='O4')
+        self.O1, self.O2, self.O3, self.O4 = [
+            tf.Variable(tf.truncated_normal(dtype=dtype, shape=(self.hidden_size//2, self.hidden_size//2), mean=0, stddev=0.01), name=name)
+            for name in ['O1','O2','O3', 'O4']
+        ]
+        
+        
+        #sparse matrices
+        m1,m2 = self.block_shape
+        #self.M_Ir, self.M_Iu, self.M_Ie = [np.ones(shape=(self.input_dimensions, self.hidden_size)) for i in range(3)]
+        self.M_Rr, self.M_Ru, self.M_Re = [np.ones(shape=(self.hidden_size//m1, self.hidden_size//m2)) for i in range(3)]
+        self.M_O1, self.M_O2, self.M_O3, self.M_O4 = [np.ones(shape=(self.hidden_size//2//m1, self.hidden_size//2//m2)) for i in range(4)]
+        
+        #self.M_IrV, self.M_IuV, self.M_IeV = [
+        #    tf.Variable(val,name=name)
+        #    for val,name in zip([self.M_Ir, self.M_Iu, self.M_Ie],['M_IrV','M_IuV','M_IeV'])]
+        self.M_RrV, self.M_RuV, self.M_ReV = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_Rr, self.M_Ru, self.M_Re],['M_RrV','M_RuV','M_ReV'])]
+        self.M_O1V, self.M_O2V, self.M_O3V, self.M_O4V = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_O1, self.M_O2, self.M_O3, self.M_O4],['M_O1V','M_O2V','M_O3V', 'M_O4V'])]
     
     def restore_variables(self, variables):
         # Weights for input vectors of shape (input_dimensions, hidden_size)
-        self.Ir = tf.Variable(variables['Ir:0'], name='Ir')
-        self.Iu = tf.Variable(variables['Iu:0'], name='Iu')
-        self.Ie = tf.Variable(variables['Ie:0'], name='Ie')
-        
+        self.Ir, self.Iu, self.Ie = [tf.Variable(variables[name+':0'], name=name) for name in ['Ir','Iu','Ie']]
         # Weights for hidden vectors of shape (hidden_size, hidden_size)
-        self.Rr = tf.Variable(variables['Rr:0'], name='Rr')
-        self.Ru = tf.Variable(variables['Ru:0'], name='Ru')
-        self.Re = tf.Variable(variables['Re:0'], name='Re')
-        
+        self.Rr, self.Ru, self.Re = [tf.Variable(variables[name+':0'], name=name) for name in ['Rr','Ru','Re']]
         # Biases for hidden vectors of shape (hidden_size,)
-        self.br = tf.Variable(variables['br:0'], name='br')
-        self.bu = tf.Variable(variables['bu:0'], name='bu')
-        self.be = tf.Variable(variables['be:0'], name='be')
-        
+        self.br, self.bu, self.be = [tf.Variable(variables[name+':0'], name=name) for name in ['br','bu','be']]
         # O's matrices
-        self.O1 = tf.Variable(variables['O1:0'], name='O1')
-        self.O3 = tf.Variable(variables['O2:0'], name='O3')
-        self.O2 = tf.Variable(variables['O3:0'], name='O2')
-        self.O4 = tf.Variable(variables['O4:0'], name='O4')
-    
+        self.O1, self.O2, self.O3, self.O4 = [tf.Variable(variables[name+':0'], name=name) for name in ['O1','O2','O3','O4']]
+        
+        #self.M_Ir, self.M_Iu, self.M_Ie = [variables[name+':0'] for name in ['M_IrV','M_IuV','M_IeV']]
+        self.M_Rr, self.M_Ru, self.M_Re = [variables[name+':0'] for name in ['M_RrV','M_RuV','M_ReV']]
+        self.M_O1, self.M_O2, self.M_O3, self.M_O4 = [variables[name+':0'] for name in ['M_O1V','M_O2V','M_O3V','M_O4V']]
+        
+        #self.M_IrV, self.M_IuV, self.M_IeV = [
+        #    tf.Variable(val,name=name)
+        #    for val,name in zip([self.M_Ir, self.M_Iu, self.M_Ie],['M_IrV','M_IuV','M_IeV'])]
+        self.M_RrV, self.M_RuV, self.M_ReV = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_Rr, self.M_Ru, self.M_Re],['M_RrV','M_RuV','M_ReV'])]
+        self.M_O1V, self.M_O2V, self.M_O3V, self.M_O4V = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_O1, self.M_O2, self.M_O3, self.M_O4],['M_O1V','M_O2V','M_O3V', 'M_O4V'])]
     def define_arithmetics(self):
         # Define the input layer placeholder
         self.input_layer = tf.placeholder(dtype=tf.float64, shape=(None, None, self.input_dimensions), name='input')
@@ -242,7 +261,7 @@ class WaveGRU_structured_sparse:
         #self.loss = tf.reduce_sum(0.5 * tf.pow(self.output - self.expected_output, 2)) / float(batch_size)
         # mean(1/2 * (y-y_true)^2)
         self.loss = tf.reduce_mean(0.5 * tf.pow(self.output - self.expected_output, 2), name='loss')
-        self.train_step = tf.train.AdamOptimizer().minimize(self.loss)
+        self.train_step = tf.train.AdamOptimizer().minimize(self.loss, var_list=self.var_list)
         
     def get_P_cs(self, lastP, y_c):
         M_O1, M_O2 = [self.extend_matrix(M) for M in [self.M_O1, self.M_O2]]
@@ -313,6 +332,16 @@ class WaveGRU_structured_sparse:
         self.M_O1, self.M_O2, self.M_O3, self.M_O4 = [
             self.get_sparse_matrix(t, k, session) for t in [self.O1, self.O2, self.O3, self.O4]]
             #self.get_sparse_matrix(t, k, session) for t in [self.M_O1, self.M_O2, self.M_O3, self.M_O4]]
+            
+        #self.M_IrV, self.M_IuV, self.M_IeV = [
+        #    tf.Variable(val,name=name)
+        #    for val,name in zip([self.M_Ir, self.M_Iu, self.M_Ie],['M_IrV','M_IuV','M_IeV'])]
+        self.M_RrV, self.M_RuV, self.M_ReV = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_Rr, self.M_Ru, self.M_Re],['M_RrV','M_RuV','M_ReV'])]
+        self.M_O1V, self.M_O2V, self.M_O3V, self.M_O4V = [
+            tf.Variable(val,name=name)
+            for val,name in zip([self.M_O1, self.M_O2, self.M_O3, self.M_O4],['M_O1V','M_O2V','M_O3V', 'M_O4V'])]
 
     def extend_matrix(self, M):
         coefs = self.block_shape
@@ -358,16 +387,16 @@ class WaveGRU_structured_sparse:
         return gen_to_wav
 
 
-# In[6]:
+# In[129]:
 
 
 input_dimensions = 1228
-hidden_size = 256
+hidden_size = 224
 batch_size = 1
 truncated_len = 100
 
 
-# In[13]:
+# In[130]:
 
 
 ds = pd.read_csv(DIRS['RAW_DATA']+'rus/voxforge_ru_aligned.csv', index_col=0)
@@ -377,32 +406,32 @@ print(ds.shape)
 ds.head()
 
 
-# In[14]:
+# In[131]:
 
 
 ds = ds[100:103]
 
 
-# In[15]:
+# In[132]:
 
 
 wav_fnames = ds['wav'].iteritems()
 align_fnames = ds['align'].iteritems()
 
 
-# In[16]:
+# In[133]:
 
 
-model_name = f'Ohe_Develop'
+model_name = f'Prod_develop'
 
 train_losses, validation_losses, model = train_model(
     WaveGRU_structured_sparse, input_dimensions, hidden_size, batch_size=batch_size, truncated_len=truncated_len,
-    num_epochs=1000, model_name=model_name, print_period=50, log_period=10,
+    num_epochs=1, model_name=model_name, print_period=50, log_period=10,
     align_fnames=align_fnames, wav_fnames=wav_fnames
 )
 
 
-# In[ ]:
+# In[134]:
 
 
 plt.figure(figsize=(10,3))
@@ -412,16 +441,41 @@ plt.title(model_name)
 plt.show()
 
 
+# In[135]:
+
+
+tf.global_variables()
+
+
 # # Restoring model
-model_name = f'Sparse_Develop'sorted(os.listdir(DIRS['MODELS']+model_name))tf.reset_default_graph()
-#saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
-saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/checkpoint-900.meta')
-with tf.Session() as sess:
-    saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
-    restored_variables = {x.name:x.eval(session=sess) for x in tf.global_variables()[:13]}
+
+# In[136]:
+
+
+model_name = f'Prod_develop'
+
+
+# In[137]:
+
+
+sorted(os.listdir(DIRS['MODELS']+model_name))
+
+
+# In[138]:
+
 
 tf.reset_default_graph()
-gru = WaveGRU(input_dimensions, hidden_size, variables_values_dict=restored_variables)X = sl.load_data(wav_fnames, 3)
+#saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/final.meta')
+saver = tf.train.import_meta_graph(DIRS['MODELS']+model_name+'/checkpoint-0.meta')
+with tf.Session() as sess:
+    saver.restore(sess,tf.train.latest_checkpoint(DIRS['MODELS']+model_name))
+    print(tf.global_variables())
+    restored_variables = {x.name:x.eval(session=sess) for x in tf.global_variables()}
+
+tf.reset_default_graph()
+gru = WaveGRU_structured_sparse(input_dimensions, hidden_size, variables_values_dict=restored_variables)
+
+
 # # Sound generation
 with tf.Session() as sess:
     init_variables = tf.global_variables_initializer()
@@ -465,13 +519,7 @@ plt.show()audio = sl.load_audio_not_one_hot(DIRS['RAW_DATA']+'cv_corpus_v1/cv-ot
     X_train, Y_train, X_test, Y_test = sl.get_train_test(X, 10, 5000)
     Y_train_audio = ((Y_train*128+128)[:,:,0])*256+(Y_train*128+128)[:,:,1]
     Y_train_audio_eval = sess.run(Y_train_audio)
-    
-# In[50]:
-
-
-os.listdir(DIRS['RAW_DATA']+'cv_corpus_v1/cv-other-train')
-
-plt.plot(audio_eval, color='blue', label='audio')
+    os.listdir(DIRS['RAW_DATA']+'cv_corpus_v1/cv-other-train')plt.plot(audio_eval, color='blue', label='audio')
 for i in Y_train_audio_eval[:1]:
     plt.plot(i)
 plt.legend()
