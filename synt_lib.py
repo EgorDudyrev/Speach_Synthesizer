@@ -26,6 +26,10 @@ def get_model_params(p=None):
              'QUANTIZATION_CHANNELS': 256*256}
     return params[p] if p else params
 
+def get_char_to_int():
+    vocab = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя \0'
+    return {c:idx for idx,c in enumerate(vocab)}
+
 def _one_hot(input_batch, 
              batch_size=get_model_params('BATCH_SIZE'),
              quantization_channels=get_model_params('QUANTIZATION_CHANNELS')):
@@ -156,6 +160,22 @@ def load_data(files, n_files=None, quantization_channels=65536):
     X = tf.concat([X//n, X%n], 2)
     X = (X-n//2)/(n//2)
     return tf.identity(X, name="X_data")
+
+def load_texts(files, n_files=None, to_int=True):
+    txts = []
+    char_to_int = get_char_to_int()
+    for idx, fname in enumerate(files):
+        if n_files is not None and idx==n_files: break
+        if type(fname)==tuple:
+            fname = fname[1]
+        if type(fname)!=str:
+            fname = fname.as_posix()
+        with open(fname, 'rb') as f:
+            txt = f.read().decode().strip()
+        if to_int:
+            txt = [char_to_int[c] for c in txt]
+        txts.append(txt)
+    return txts
 
 def split_on_vowels(s, vowels='аеёиоуыэюя'):
     vowel_idxs = np.array([(m.start(0), m.end(0)) for m in re.finditer('|'.join(vowels), s)])
