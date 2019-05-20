@@ -111,13 +111,13 @@ class WaveGRU():
         #transpose to [batch, time, coarse/fine]
         P_ct, P_ft = tf.expand_dims(self.P_ct_fl_unscaled, 1), tf.expand_dims(self.P_ft_fl_unscaled, 1)
         self.output_probs = tf.concat([P_ct, P_ft],2, name='output_probs')
-        self.output_probs_fl = tf.reshape(self.output_probs, (-1,self.out_layer_size//2))
+        self.output_probs_fl = tf.reshape(self.output_probs, (-1,self.scale*2))
         
         self.output_true = tf.to_int32(self.Y_true*self.scale+self.scale)
         self.output_true_fl = tf.reshape(self.output_true, (-1,))
         
         
-        self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.output_true_fl, logits=self.output_probs_fl, name='loss')
+        self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.output_true_fl, logits=self.output_probs_fl, name='loss'))
         self.train_step = tf.train.AdamOptimizer().minimize(self.loss)
         
     
@@ -255,7 +255,7 @@ class WaveGRU():
         sound_X = np.concatenate([sound_X, c_shift],2)
         
         #txt_embed = session.run(self.txt_embed, feed_dict={self.text_X:txt_X})
-        feed_dict={gru.sound_X:sound_X, gru.txt_embed_plh:txt_embed, gru.Y_true:sound_Y}
+        feed_dict={self.sound_X:sound_X, self.txt_embed_plh:txt_embed, self.Y_true:sound_Y}
         # Compute the losses
         _, train_loss = session.run([self.train_step, self.loss],
                                  feed_dict=feed_dict)

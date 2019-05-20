@@ -270,28 +270,34 @@ plt.show()
 
 # # New model with new loss
 
-# In[5]:
+# In[146]:
 
 
 import DWave4
 DWave4 = importlib.reload(DWave4)
 
 
-# In[6]:
+# In[147]:
 
 
 tf.reset_default_graph()
 sess = tf.Session()
 
 
-# In[7]:
+# In[148]:
 
 
-gru = DWave4.WaveGRU(3,32, n_batches=3, hidden_size=256)
+gru = DWave4.WaveGRU(3,32, n_batches=1, hidden_size=256)
 sess.run(tf.global_variables_initializer())
 
 
-# In[8]:
+# In[149]:
+
+
+gru.train(audio_data, txt_emb, sess)
+
+
+# In[137]:
 
 
 txt_emb = np.array([0]*gru.text_embed_size).reshape(1,-1)
@@ -315,14 +321,14 @@ fname = DIRS['RAW_DATA']+'/rus/voxforge_ru/0/00/78d77cdb75be'
 os.path.isfile(fname+'.wav')
 
 
-# In[118]:
+# In[120]:
 
 
 audio_data = sl.load_data([fname+'.wav']).eval(session=sess)
 audio_data
 
 
-# In[119]:
+# In[127]:
 
 
 audio_data.shape

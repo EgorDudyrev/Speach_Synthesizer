@@ -15926,7 +15926,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[5]:</div>
+<div class="prompt input_prompt">In&nbsp;[146]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">DWave4</span>
@@ -15940,7 +15940,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[6]:</div>
+<div class="prompt input_prompt">In&nbsp;[147]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">tf</span><span class="o">.</span><span class="n">reset_default_graph</span><span class="p">()</span>
@@ -15954,11 +15954,24 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[7]:</div>
+<div class="prompt input_prompt">In&nbsp;[148]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">gru</span> <span class="o">=</span> <span class="n">DWave4</span><span class="o">.</span><span class="n">WaveGRU</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span> <span class="n">n_batches</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">hidden_size</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">gru</span> <span class="o">=</span> <span class="n">DWave4</span><span class="o">.</span><span class="n">WaveGRU</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span> <span class="n">n_batches</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hidden_size</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
 <span class="n">sess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">global_variables_initializer</span><span class="p">())</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[149]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">gru</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">audio_data</span><span class="p">,</span> <span class="n">txt_emb</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -15971,15 +15984,16 @@ div#notebook {
 
 <div class="output_area">
 
-<div class="prompt"></div>
+<div class="prompt output_prompt">Out[149]:</div>
 
 
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>WARNING:tensorflow:From /opt/notebooks/notebooks/DWave4.py:158: arg_max (from tensorflow.python.ops.gen_math_ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Use `argmax` instead
-</pre>
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>array([5.540682 , 5.55398  , 5.5562882, ..., 5.538691 , 5.5502443,
+       5.5276275], dtype=float32)</pre>
 </div>
+
 </div>
 
 </div>
@@ -15988,7 +16002,7 @@ Use `argmax` instead
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[8]:</div>
+<div class="prompt input_prompt">In&nbsp;[137]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">txt_emb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">gru</span><span class="o">.</span><span class="n">text_embed_size</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
@@ -16025,10 +16039,10 @@ Use `argmax` instead
 
  
  
-<div id="30ca3316-a420-4176-ac24-6f55178e99b1"></div>
+<div id="0fce5969-77fb-483f-b00e-3f1601ccdb40"></div>
 <div class="output_subarea output_widget_view ">
 <script type="text/javascript">
-var element = $('#30ca3316-a420-4176-ac24-6f55178e99b1');
+var element = $('#0fce5969-77fb-483f-b00e-3f1601ccdb40');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "17acaca420044eb7912a8446d0779ce4", "version_major": 2, "version_minor": 0}
@@ -16100,7 +16114,7 @@ var element = $('#30ca3316-a420-4176-ac24-6f55178e99b1');
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[118]:</div>
+<div class="prompt input_prompt">In&nbsp;[120]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">audio_data</span> <span class="o">=</span> <span class="n">sl</span><span class="o">.</span><span class="n">load_data</span><span class="p">([</span><span class="n">fname</span><span class="o">+</span><span class="s1">&#39;.wav&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">sess</span><span class="p">)</span>
@@ -16117,7 +16131,7 @@ var element = $('#30ca3316-a420-4176-ac24-6f55178e99b1');
 
 <div class="output_area">
 
-<div class="prompt output_prompt">Out[118]:</div>
+<div class="prompt output_prompt">Out[120]:</div>
 
 
 
@@ -16140,7 +16154,7 @@ var element = $('#30ca3316-a420-4176-ac24-6f55178e99b1');
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[119]:</div>
+<div class="prompt input_prompt">In&nbsp;[127]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">audio_data</span><span class="o">.</span><span class="n">shape</span>
@@ -16156,7 +16170,7 @@ var element = $('#30ca3316-a420-4176-ac24-6f55178e99b1');
 
 <div class="output_area">
 
-<div class="prompt output_prompt">Out[119]:</div>
+<div class="prompt output_prompt">Out[127]:</div>
 
 
 
@@ -16262,10 +16276,10 @@ audio_data = np.concatenate([-np.ones((1,30*2,2)),audio_data],1)n_batches=30for 
 
  
  
-<div id="23389205-700a-4137-a5a0-06005b8d5e14"></div>
+<div id="87f01888-b479-494e-8ca4-c12a29746ecd"></div>
 <div class="output_subarea output_widget_view ">
 <script type="text/javascript">
-var element = $('#23389205-700a-4137-a5a0-06005b8d5e14');
+var element = $('#87f01888-b479-494e-8ca4-c12a29746ecd');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "72408c08297a435d9ebf2c70b76bb591", "version_major": 2, "version_minor": 0}
@@ -16549,10 +16563,10 @@ var element = $('#23389205-700a-4137-a5a0-06005b8d5e14');
 
  
  
-<div id="719a0b4e-c722-4fb7-a0f9-25ff60323259"></div>
+<div id="1db71179-f8a8-4cf8-9199-d48848f172d8"></div>
 <div class="output_subarea output_widget_view ">
 <script type="text/javascript">
-var element = $('#719a0b4e-c722-4fb7-a0f9-25ff60323259');
+var element = $('#1db71179-f8a8-4cf8-9199-d48848f172d8');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "b9cf10c86f454bacbc1c8fc181e34b01", "version_major": 2, "version_minor": 0}
