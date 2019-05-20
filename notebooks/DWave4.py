@@ -5,7 +5,7 @@ from tqdm import tqdm_notebook
 class WaveGRU():
     def __init__(self, input_dim=3, hidden_input=128, hidden_size=224, out_layer_size=16,
                  block_shape=(16,1), vocab_size=35, max_text_len=100, sample_rate=16000,
-                n_batches=5):
+                n_batches=5, restore_variables=None):
         self.input_dim = input_dim
         self.hidden_input = hidden_input
         self.text_embed_size = hidden_input-input_dim
@@ -19,7 +19,10 @@ class WaveGRU():
         self.n_batches = n_batches
         
         self.define_constants()
-        self.define_variables()
+        if restore_variables is None:
+            self.define_variables()
+        else:
+            self.restore_variables(restore_variables)
         self.define_placeholders()
         self.train_pass()
         self.define_loss()
