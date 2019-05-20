@@ -74,26 +74,41 @@ class WaveGRU():
         ]
     
     def restore_variables(self, variables): 
-        self.Ir, self.Iu, self.Ie = [tf.assign(t,variables[name+':0']) for t,name in zip([self.Ir, self.Iu, self.Ie],['Ir','Iu','Ie'])]
-        self.Rr, self.Ru, self.Re = [tf.assign(t,variables[name+':0']) for t,name in zip([self.Rr, self.Ru, self.Re],['Rr','Ru','Re'])]
-        self.br, self.bu, self.be = [tf.assign(t,variables[name+':0']) for t,name in zip([self.br, self.bu, self.be],['br','bu','be'])]
+        shape=(self.hidden_input, self.hidden_size)
+        self.Ir, self.Iu, self.Ie = [tf.Variable(variables[name+':0'], name=name) for name in ['Ir','Iu','Ie']]
+        # Weights for hidden vectors of shape (hidden_size, hidden_size)
+        shape=(self.hidden_size,self.hidden_size)
+        self.Rr, self.Ru, self.Re = [tf.Variable(variables[name+':0'], name=name) for name in ['Rr','Ru','Re']]
+        # Biases for hidden vectors of shape (hidden_size,)
+        shape=(self.hidden_size,)
+        self.br, self.bu, self.be = [tf.Variable(variables[name+':0'], name=name) for name in ['br','bu','be']]
+        # O's matrices
+        shape=(self.hidden_size//2, self.hidden_size//2)
+        self.O1, self.O3 = [tf.Variable(variables[name+':0'], name=name) for name in ['O1','O3',]]
+        shape=(self.hidden_size//2, self.scale*2)
+        self.O2, self.O4 = [tf.Variable(variables[name+':0'], name=name) for name in ['O2', 'O4']]
+        # biases for O's
+        shape=(self.hidden_size//2,)
+        self.bO1, self.bO3 = [tf.Variable(variables[name+':0'], name=name) for name in ['bO1','bO3']]
+        shape=(self.scale*2,)
+        self.bO2, self.bO4 = [tf.Variable(variables[name+':0'], name=name) for name in ['bO2','bO4']]
         
-        self.O1, self.O2, self.O3, self.O4 = [tf.assign(t,variables[name+':0']) for t,name in zip([self.O1, self.O2, self.O3, self.O4],['O1','O2','O3','O4'])]
-        self.bO1, self.bO2, self.bO3, self.bO4 = [tf.assign(t,variables[name+':0']) for t,name in zip([self.bO1, self.bO2, self.bO3, self.bO4],['bO1','bO2','bO3','bO4'])]
-        
+        #sparse matrices
+        m1,m2 = self.block_shape
         self.M_Ir, self.M_Iu, self.M_Ie = [variables[name+':0'] for name in ['M_IrV','M_IuV','M_IeV']]
-        self.M_Rr, self.M_Ru, self.M_Re = [variables[name+':0'] for name in ['M_IrV','M_IuV','M_IeV']]
-        self.M_O1, self.M_O2, self.M_O3, self.M_O4 = [variables[name+':0'] for name in ['M_O1V','M_O2V','M_O3V','M_O4V']]
-                                        
+        self.M_Rr, self.M_Ru, self.M_Re = [variables[name+':0'] for name in ['M_RrV','M_RuV','M_ReV']]
+        self.M_O1, self.M_O3 = [variables[name+':0'] for name in ['M_O1V','M_O3V']]
+        self.M_O2, self.M_O4 = [variables[name+':0'] for name in ['M_O2V','M_O4V']]
+        
         self.M_IrV, self.M_IuV, self.M_IeV, self.M_RrV, self.M_RuV, self.M_ReV, \
         self.M_O1V, self.M_O2V, self.M_O3V, self.M_O4V = [
-            tf.assign(t, variables[name+':0']) for t, name in zip([
+            tf.Variable(v, name=n, trainable=False) for v, n in zip([
                 self.M_Ir, self.M_Iu, self.M_Ie, self.M_Rr, self.M_Ru, self.M_Re,
                 self.M_O1, self.M_O2, self.M_O3, self.M_O4,],[
                 'M_IrV','M_IuV','M_IeV', 'M_RrV','M_RuV','M_ReV',
                 'M_O1V','M_O2V','M_O3V', 'M_O4V',])
         ]
-        
+
     def define_placeholders(self):
         self.sound_X = tf.placeholder(dtype=tf.float32, shape=(self.n_batches, None, self.input_dim), name='soundInput')
         self.sound_trans = tf.transpose(self.sound_X, [1,0,2], name='sound_trans')
@@ -156,11 +171,15 @@ class WaveGRU():
         self.h_c_flat, self.h_f_flat = tf.reshape(self.h_c, (-1,self.hidden_size//2)), tf.reshape(self.h_f, (-1, self.hidden_size//2))
         self.P_ct_fl_unscaled = tf.matmul(tf.nn.relu(tf.matmul(self.h_c_flat, self.O1)+self.bO1), self.O2)+self.bO2
         self.P_ft_fl_unscaled = tf.matmul(tf.nn.relu(tf.matmul(self.h_f_flat, self.O3)+self.bO3), self.O4)+self.bO4
-        self.P_ct_fl, self.P_ft_fl = tf.nn.softmax(self.P_ct_fl_unscaled, 2), tf.nn.softmax(self.P_ft_fl_unscaled, 2)
+        #self.P_ct_fl, self.P_ft_fl = tf.nn.softmax(self.P_ct_fl_unscaled, 1), tf.nn.softmax(self.P_ft_fl_unscaled, 1)
+        #self.P_ct, self.P_ft = tf.reshape(self.P_ct_fl, (self.n_batches, -1, self.scale*2)), tf.reshape(self.P_ft_fl, (self.n_batches, -1, self.scale*2))        
+        #self.c_t, self.f_t = tf.argmax(self.P_ct,2), tf.argmax(self.P_ft,2)
+        #self.c_t, self.f_t = tf.expand_dims(self.c_t,2), tf.expand_dims(self.f_t,2)
+        self.P_ct_fl, self.P_ft_fl = tf.nn.softmax(self.P_ct_fl_unscaled, 1), tf.nn.softmax(self.P_ft_fl_unscaled, 1)
         self.P_ct, self.P_ft = tf.reshape(self.P_ct_fl, (self.n_batches, -1, self.scale*2)), tf.reshape(self.P_ft_fl, (self.n_batches, -1, self.scale*2))        
-        self.c_t, self.f_t = tf.arg_max(self.P_ct,2), tf.arg_max(self.P_ft,2)
+        self.c_t, self.f_t = (tf.argmax(self.P_ct,2)-self.scale)/self.scale, (tf.argmax(self.P_ft,2)-self.scale)/self.scale
         self.c_t, self.f_t = tf.expand_dims(self.c_t,2), tf.expand_dims(self.f_t,2)
-        
+
         self.y = tf.concat([self.c_t, self.f_t], axis=2, name='y')
         
     def calc_hid(self, h_tm1, sound_tm1):
@@ -266,27 +285,27 @@ class WaveGRU():
             pass
         
 
-        M_Iu, M_Ir, M_Ie = [self.extend_matrix(M) for M in [self.M_Iu, self.M_Ir, self.M_Ie]]
-        M_Ru, M_Rr, M_Re = [self.extend_matrix(M) for M in [self.M_Ru, self.M_Rr, self.M_Re]]
-        self.Iu = tf.assign(self.Iu, tf.multiply(self.Iu, M_Iu, name='Iu_sparse'))
-        self.Ir = tf.assign(self.Ir, tf.multiply(self.Ir, M_Ir, name='Ir_sparse'))
-        self.Ie = tf.assign(self.Ie, tf.multiply(self.Ie, M_Ie, name='Ie_sparse'))
+        #M_Iu, M_Ir, M_Ie = [self.extend_matrix(M) for M in [self.M_Iu, self.M_Ir, self.M_Ie]]
+        #M_Ru, M_Rr, M_Re = [self.extend_matrix(M) for M in [self.M_Ru, self.M_Rr, self.M_Re]]
+        #self.Iu = tf.assign(self.Iu, tf.multiply(self.Iu, M_Iu, name='Iu_sparse'))
+        #self.Ir = tf.assign(self.Ir, tf.multiply(self.Ir, M_Ir, name='Ir_sparse'))
+        #self.Ie = tf.assign(self.Ie, tf.multiply(self.Ie, M_Ie, name='Ie_sparse'))
         #self.Iu_sparse, self.Ir_sparse, self.Ie_sparse = self.Iu_masked, self.Ir_masked, self.Ie_masked
-        self.Ru = tf.assign(self.Ru, tf.multiply(self.Ru, M_Ru, name='Ru_sparse'))
-        self.Rr = tf.assign(self.Rr, tf.multiply(self.Rr, M_Rr, name='Rr_sparse'))
-        self.Re = tf.assign(self.Re, tf.multiply(self.Re, M_Re, name='Re_sparse'))
+        #self.Ru = tf.assign(self.Ru, tf.multiply(self.Ru, M_Ru, name='Ru_sparse'))
+        #self.Rr = tf.assign(self.Rr, tf.multiply(self.Rr, M_Rr, name='Rr_sparse'))
+        #self.Re = tf.assign(self.Re, tf.multiply(self.Re, M_Re, name='Re_sparse'))
 
-        M_O1, M_O2 = [self.extend_matrix(M) for M in [self.M_O1, self.M_O2]]
-        self.O1_sparse, self.O2_sparse = tf.multiply(self.O1, M_O1, name='O1_sparse'), tf.multiply(self.O2, M_O2, name='O2_sparse')
-        self.O1, self.O2 = tf.assign(self.O1, self.O1_sparse), tf.assign(self.O2, self.O2_sparse)
-        del M_O1, M_O2
-        M_O3, M_O4 = [self.extend_matrix(M) for M in [self.M_O3, self.M_O4]]
-        self.O3_sparse, self.O4_sparse = tf.multiply(self.O3, M_O3, name='O3_sparse'), tf.multiply(self.O4, M_O4, name='O4_sparse')
-        self.O3, self.O4 = tf.assign(self.O3, self.O3_sparse), tf.assign(self.O4, self.O4_sparse)
-        del M_O3, M_O4
+        #M_O1, M_O2 = [self.extend_matrix(M) for M in [self.M_O1, self.M_O2]]
+        #self.O1_sparse, self.O2_sparse = tf.multiply(self.O1, M_O1, name='O1_sparse'), tf.multiply(self.O2, M_O2, name='O2_sparse')
+        #self.O1, self.O2 = tf.assign(self.O1, self.O1_sparse), tf.assign(self.O2, self.O2_sparse)
+        #del M_O1, M_O2
+        #M_O3, M_O4 = [self.extend_matrix(M) for M in [self.M_O3, self.M_O4]]
+        #self.O3_sparse, self.O4_sparse = tf.multiply(self.O3, M_O3, name='O3_sparse'), tf.multiply(self.O4, M_O4, name='O4_sparse')
+        #self.O3, self.O4 = tf.assign(self.O3, self.O3_sparse), tf.assign(self.O4, self.O4_sparse)
+        #del M_O3, M_O4
         
         h_t = np.zeros((self.n_batches, self.hidden_size), dtype='float32')
-        x = np.zeros((self.n_batches, 1, self.input_dim), dtype='float32')
+        x = -np.ones((self.n_batches, 1, self.input_dim), dtype='float32')
         
         xs = [x[:,:,:2]]
         n_iters = int(seconds*self.sample_rate/self.n_batches)
@@ -307,3 +326,4 @@ class WaveGRU():
         gener_flat = gener_flat*self.scale+self.scale
         gener_flat = gener_flat[:,:,0]*2*self.scale+gener_flat[:,:,1]
         gener_flat = gener_flat.T.flatten()
+        return gener_flat

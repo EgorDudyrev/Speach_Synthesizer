@@ -270,28 +270,28 @@ plt.show()
 
 # # New model with new loss
 
-# In[146]:
+# In[150]:
 
 
 import DWave4
 DWave4 = importlib.reload(DWave4)
 
 
-# In[147]:
+# In[151]:
 
 
 tf.reset_default_graph()
 sess = tf.Session()
 
 
-# In[148]:
+# In[152]:
 
 
 gru = DWave4.WaveGRU(3,32, n_batches=1, hidden_size=256)
 sess.run(tf.global_variables_initializer())
 
 
-# In[149]:
+# In[153]:
 
 
 gru.train(audio_data, txt_emb, sess)
@@ -338,31 +338,43 @@ audio_data = np.concatenate([-np.ones((1,30*2,2)),audio_data],1)n_batches=30for 
     audio_data = np.concatenate([audio_data[:,1:,:],audio_data[:,:-1,-2:]],2)audio_data.shapeaudio_data_resh = audio_data.reshape((1,30,-1,2))audio_data_resh.shape
 # # New model with new sparse
 
-# In[27]:
+# In[163]:
 
 
 import DWave5
 DWave5 = importlib.reload(DWave5)
 
 
-# In[28]:
+# In[164]:
 
 
 tf.reset_default_graph()
 sess = tf.Session()
 
 
-# In[29]:
+# In[165]:
 
 
 gru = DWave5.WaveGRU(3,32, n_batches=1)
 sess.run(tf.global_variables_initializer())
 
 
-# In[30]:
+# In[166]:
 
 
 txt_emb = np.array([0]*gru.text_embed_size).reshape(1,-1)
+
+
+# In[167]:
+
+
+audio_data.shape
+
+
+# In[ ]:
+
+
+gru.train(audio_data, txt_emb, sess)
 
 
 # In[31]:

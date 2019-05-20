@@ -137,6 +137,10 @@ class WaveGRU():
 
         self.h_c_flat, self.h_f_flat = tf.reshape(self.h_c, (-1,self.hidden_size//2)), tf.reshape(self.h_f, (-1, self.hidden_size//2))
         T = tf.transpose
+        def sm(a,b):
+            return tf.sparse_matmul(a,b, transpose_b=True, b_is_sparse=True)
+
+
         self.P_ct_fl_unscaled =  T(tf.sparse.matmul(self.O2, T(tf.nn.relu(T(tf.sparse.matmul(self.O1, T(self.h_c_flat)))+self.bO1))))+self.bO2
         self.P_ft_fl_unscaled =  T(tf.sparse.matmul(self.O4, T(tf.nn.relu(T(tf.sparse.matmul(self.O3, T(self.h_f_flat)))+self.bO3))))+self.bO4
 
@@ -298,7 +302,7 @@ class WaveGRU():
         sound_X = np.concatenate([sound_X, c_shift],2)
         
         #txt_embed = session.run(self.txt_embed, feed_dict={self.text_X:txt_X})
-        feed_dict={gru.sound_X:sound_X, gru.txt_embed_plh:txt_embed, gru.Y_true:sound_Y}
+        feed_dict={self.sound_X:sound_X, self.txt_embed_plh:txt_embed, self.Y_true:sound_Y}
         # Compute the losses
         _, train_loss = session.run([self.train_step, self.loss],
                                  feed_dict=feed_dict)
